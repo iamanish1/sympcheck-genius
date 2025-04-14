@@ -1,0 +1,292 @@
+
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Image as ImageIcon, Upload, AlertCircle, CheckCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const ReportUpload = () => {
+  const [activeTab, setActiveTab] = useState("image");
+  const [file, setFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const { toast } = useToast();
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    
+    if (selectedFile) {
+      if (!selectedFile.type.includes("image/") && !selectedFile.type.includes("application/pdf")) {
+        toast({
+          variant: "destructive",
+          title: "Invalid file type",
+          description: "Please upload an image or PDF file"
+        });
+        return;
+      }
+      
+      setFile(selectedFile);
+      setUploadComplete(false);
+      
+      // Create preview if it's an image
+      if (selectedFile.type.includes("image/")) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setFilePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(selectedFile);
+      } else {
+        // For PDF, just show a generic preview
+        setFilePreview(null);
+      }
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!file) {
+      toast({
+        variant: "destructive",
+        title: "No file selected",
+        description: `Please upload a ${activeTab === "image" ? "medical image" : "medical report"}`
+      });
+      return;
+    }
+    
+    // Simulate upload
+    setIsUploading(true);
+    
+    setTimeout(() => {
+      setIsUploading(false);
+      setIsAnalyzing(true);
+      
+      // Simulate analysis
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        setUploadComplete(true);
+        
+        toast({
+          title: "Analysis Complete",
+          description: "Your medical report has been processed successfully",
+        });
+      }, 3000);
+    }, 2000);
+  };
+
+  const resetUpload = () => {
+    setFile(null);
+    setFilePreview(null);
+    setUploadComplete(false);
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <Alert className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Coming Soon</AlertTitle>
+        <AlertDescription>
+          The Report Scanner feature is still in development. This is a preview of the upcoming functionality.
+        </AlertDescription>
+      </Alert>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-2 w-full">
+          <TabsTrigger value="image" className="flex items-center gap-2">
+            <ImageIcon className="h-4 w-4" />
+            <span>Medical Images</span>
+          </TabsTrigger>
+          <TabsTrigger value="report" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            <span>Text Reports</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="image" className="pt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Medical Image</CardTitle>
+              <CardDescription>
+                Upload X-rays, MRIs, CT scans, or other medical images for AI analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!uploadComplete ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="medical-image">Upload Image</Label>
+                    <Input
+                      id="medical-image"
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleImageUpload}
+                      className="cursor-pointer"
+                      disabled={isUploading || isAnalyzing}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Supported formats: JPG, PNG, DICOM, PDF
+                    </p>
+                  </div>
+                  
+                  {filePreview && (
+                    <div className="mt-4 border rounded-md overflow-hidden">
+                      <img 
+                        src={filePreview} 
+                        alt="Medical image preview" 
+                        className="max-h-80 mx-auto"
+                      />
+                    </div>
+                  )}
+                  
+                  {file && !filePreview && (
+                    <div className="mt-4 border rounded-md p-8 text-center">
+                      <FileText className="h-16 w-16 mx-auto text-gray-400" />
+                      <p className="mt-2 text-gray-600">{file.name}</p>
+                    </div>
+                  )}
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={!file || isUploading || isAnalyzing}
+                  >
+                    {isUploading ? (
+                      "Uploading..."
+                    ) : isAnalyzing ? (
+                      "Analyzing..."
+                    ) : (
+                      <span className="flex items-center">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload for Analysis
+                      </span>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <div className="text-center p-8">
+                  <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                  <h3 className="mt-4 text-xl font-medium">Analysis Complete!</h3>
+                  <p className="mt-2 text-gray-500">
+                    Your medical image has been processed successfully.
+                  </p>
+                  <Button onClick={resetUpload} className="mt-6">
+                    Upload Another Report
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col bg-gray-50">
+              <div className="space-y-2 text-sm text-gray-600">
+                <p className="font-medium">What kind of images can I upload?</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>X-ray images (chest, bone, joint)</li>
+                  <li>CT scan images</li>
+                  <li>MRI images</li>
+                  <li>Ultrasound images</li>
+                  <li>Other medical imaging results</li>
+                </ul>
+                <Separator className="my-2" />
+                <p className="text-xs text-gray-500">
+                  <strong>Note:</strong> All uploads are encrypted and processed securely. We do not store your 
+                  medical images beyond the analysis period unless you explicitly choose to save them.
+                </p>
+              </div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="report" className="pt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Medical Report</CardTitle>
+              <CardDescription>
+                Upload blood test reports, pathology reports, or other medical documents for AI analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!uploadComplete ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="medical-report">Upload Report</Label>
+                    <Input
+                      id="medical-report"
+                      type="file"
+                      accept=".pdf,.jpg,.png,.doc,.docx"
+                      onChange={handleImageUpload}
+                      className="cursor-pointer"
+                      disabled={isUploading || isAnalyzing}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Supported formats: PDF, JPG, PNG, DOC, DOCX
+                    </p>
+                  </div>
+                  
+                  {file && (
+                    <div className="mt-4 border rounded-md p-8 text-center">
+                      <FileText className="h-16 w-16 mx-auto text-gray-400" />
+                      <p className="mt-2 text-gray-600">{file.name}</p>
+                    </div>
+                  )}
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={!file || isUploading || isAnalyzing}
+                  >
+                    {isUploading ? (
+                      "Uploading..."
+                    ) : isAnalyzing ? (
+                      "Analyzing..."
+                    ) : (
+                      <span className="flex items-center">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload for Analysis
+                      </span>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <div className="text-center p-8">
+                  <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                  <h3 className="mt-4 text-xl font-medium">Analysis Complete!</h3>
+                  <p className="mt-2 text-gray-500">
+                    Your medical report has been processed successfully.
+                  </p>
+                  <Button onClick={resetUpload} className="mt-6">
+                    Upload Another Report
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col bg-gray-50">
+              <div className="space-y-2 text-sm text-gray-600">
+                <p className="font-medium">What kind of reports can I upload?</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Blood test reports</li>
+                  <li>Complete blood count (CBC) reports</li>
+                  <li>Lipid profile reports</li>
+                  <li>Thyroid function tests</li>
+                  <li>Other pathology reports</li>
+                </ul>
+                <Separator className="my-2" />
+                <p className="text-xs text-gray-500">
+                  <strong>Note:</strong> This feature can identify abnormal values and provide general 
+                  information but should not replace professional medical interpretation.
+                </p>
+              </div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default ReportUpload;
