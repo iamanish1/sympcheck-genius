@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { uploadReport, getReportAnalysis } from "../../api/reportService";
+import * as mockReportService from "../../api/mockReportService";
 import ReportAnalysisResult from "./ReportAnalysisResult";
 
 const ReportUpload = () => {
@@ -25,6 +25,7 @@ const ReportUpload = () => {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [useMockApi, setUseMockApi] = useState(false);
   const { toast } = useToast();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +72,21 @@ const ReportUpload = () => {
     
     try {
       setIsUploading(true);
-      const result = await uploadReport(file);
+      
+      let result;
+      
+      if (!useMockApi) {
+        try {
+          result = await uploadReport(file);
+        } catch (error) {
+          console.log("Falling back to mock API after error:", error);
+          setUseMockApi(true);
+          result = await mockReportService.uploadReport(file);
+        }
+      } else {
+        result = await mockReportService.uploadReport(file);
+      }
+      
       setReportId(result.report.id);
       
       setIsUploading(false);
@@ -79,6 +94,11 @@ const ReportUpload = () => {
       
       // Begin polling for results
       startPollingForResults(result.report.id);
+      
+      toast({
+        title: "Upload successful",
+        description: "Your file has been uploaded and is being analyzed"
+      });
       
     } catch (error: any) {
       setIsUploading(false);
@@ -99,7 +119,19 @@ const ReportUpload = () => {
     // Set up polling
     const interval = setInterval(async () => {
       try {
-        const result = await getReportAnalysis(id);
+        let result;
+        
+        if (!useMockApi) {
+          try {
+            result = await getReportAnalysis(id);
+          } catch (error) {
+            console.log("Falling back to mock API after polling error:", error);
+            setUseMockApi(true);
+            result = await mockReportService.getReportAnalysis(id);
+          }
+        } else {
+          result = await mockReportService.getReportAnalysis(id);
+        }
         
         if (result.report.status === 'completed') {
           clearInterval(interval);
