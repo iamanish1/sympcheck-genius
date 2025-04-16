@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { Search, Camera, AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { analyzeMedicine } from "@/api/medicineService";
+import AIProcessingStatus from "@/components/reports/AIProcessingStatus";
 
 interface MedicineInfo {
   name: string;
@@ -58,9 +59,10 @@ const MedicineSearch = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [medicineInfo, setMedicineInfo] = useState<MedicineInfo | null>(null);
+  const [aiStatus, setAiStatus] = useState<'loading' | 'processing' | 'complete' | 'error'>('complete');
   const { toast } = useToast();
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!searchQuery.trim()) {
@@ -73,12 +75,22 @@ const MedicineSearch = () => {
     }
     
     setIsSearching(true);
+    setAiStatus('loading');
     
-    // Simulate API call with a timeout
-    setTimeout(() => {
-      setMedicineInfo(mockMedicineInfo);
+    try {
+      const result = await analyzeMedicine(searchQuery);
+      setMedicineInfo(result);
+      setAiStatus('complete');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Analysis failed",
+        description: "Failed to analyze medicine information. Please try again."
+      });
+      setAiStatus('error');
+    } finally {
       setIsSearching(false);
-    }, 1500);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,7 +165,7 @@ const MedicineSearch = () => {
               <CardHeader>
                 <CardTitle>Search Medicine</CardTitle>
                 <CardDescription>
-                  Enter the name of a medicine to get detailed information
+                  Enter the name of a medicine to get AI-powered analysis
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -166,9 +178,16 @@ const MedicineSearch = () => {
                       className="flex-1"
                     />
                     <Button type="submit" disabled={isSearching}>
-                      {isSearching ? "Searching..." : "Search"}
+                      {isSearching ? "Analyzing..." : "Analyze"}
                     </Button>
                   </div>
+                  
+                  {aiStatus !== 'complete' && (
+                    <AIProcessingStatus 
+                      stage={aiStatus} 
+                      progress={aiStatus === 'loading' ? 30 : aiStatus === 'processing' ? 70 : 100}
+                    />
+                  )}
                   
                   <p className="text-sm text-gray-500">
                     Examples: Tylenol, Advil, Lisinopril, Metformin
