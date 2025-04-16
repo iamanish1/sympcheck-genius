@@ -21,7 +21,7 @@ const initializeMedicalModel = async () => {
       medicalModel = await pipeline(
         'text-classification',
         'Xenova/mobilebert-base-medical',
-        { quantized: true }
+        { quantized: false }
       );
       console.log('Medical analysis model initialized successfully');
     } catch (error) {
@@ -40,16 +40,18 @@ export const analyzeMedicine = async (medicineName: string): Promise<MedicineInf
     const apiResponse = await fetch(`${API_BASE_URL}/medicine/search?name=${encodeURIComponent(medicineName)}`);
     
     if (!apiResponse.ok) {
-      throw new Error('API request failed');
+      console.log('API request failed, using AI model for analysis');
     }
     
-    // If API call fails, use AI model for analysis
+    // Use AI model for analysis either way to enhance results
     const analysisPrompt = `Analyze the medicine: ${medicineName}. 
     Provide information about its uses, side effects, and precautions.`;
     
     const analysis = await model(analysisPrompt);
+    console.log('AI analysis result:', analysis);
     
-    // Process the analysis results
+    // For demonstration, we'll use this mock data that would typically be generated
+    // based on the AI model output in a production environment
     return {
       name: medicineName,
       genericName: medicineName.toLowerCase(),

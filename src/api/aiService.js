@@ -12,7 +12,7 @@ export const getTextModel = async () => {
       modelCache.textModel = await pipeline(
         'text-classification',
         'Xenova/distilbert-base-uncased-finetuned-sst-2-english',
-        { quantized: true }
+        { quantized: false }
       );
       console.log('Text analysis model initialized successfully');
     } catch (error) {
@@ -30,7 +30,7 @@ export const getImageModel = async () => {
       modelCache.imageModel = await pipeline(
         'image-classification',
         'Xenova/vit-base-patch16-224', 
-        { quantized: true }
+        { quantized: false }
       );
       console.log('Image analysis model initialized successfully');
     } catch (error) {
@@ -39,6 +39,24 @@ export const getImageModel = async () => {
     }
   }
   return modelCache.imageModel;
+};
+
+export const getSymptomModel = async () => {
+  if (!modelCache.symptomModel) {
+    console.log('Initializing symptom analysis model...');
+    try {
+      modelCache.symptomModel = await pipeline(
+        'text-classification',
+        'Xenova/distilbert-base-uncased',
+        { quantized: false }
+      );
+      console.log('Symptom analysis model initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize symptom analysis model:', error);
+      throw error;
+    }
+  }
+  return modelCache.symptomModel;
 };
 
 // Analyze text (for medical reports)
@@ -128,3 +146,47 @@ export const extractTextFromPDF = async (pdfUrl) => {
   return "This is a simulated extraction of text from a PDF document. In a production environment, you would use a PDF parsing library to extract the actual text content.";
 };
 
+// New function to analyze symptoms for checkup buddy
+export const analyzeSymptoms = async (symptoms, userData) => {
+  try {
+    const model = await getSymptomModel();
+    
+    // Prepare the input for the model
+    const prompt = `Patient information: Age ${userData.age}, Gender: ${userData.gender}
+    Medical history: ${userData.medicalHistory || 'None'}
+    Current medications: ${userData.medications || 'None'}
+    Symptoms: ${symptoms.join(', ')}
+    
+    Analyze these symptoms and provide a preliminary assessment.`;
+    
+    console.log('Analyzing symptoms with AI model:', prompt);
+    const result = await model(prompt);
+    
+    // For demonstration, we'll return structured output
+    // In a real application, this would be based on the model's output
+    return {
+      possibleConditions: [
+        {
+          name: 'Common Cold',
+          probability: 0.75,
+          description: 'A viral infection of the upper respiratory tract'
+        },
+        {
+          name: 'Seasonal Allergy',
+          probability: 0.45,
+          description: 'An immune system response to environmental allergens'
+        }
+      ],
+      recommendations: [
+        'Rest and stay hydrated',
+        'Consider over-the-counter cold medications',
+        'Consult a doctor if symptoms worsen or persist beyond 7 days'
+      ],
+      urgencyLevel: 'Low',
+      followUpRecommended: symptoms.length > 3
+    };
+  } catch (error) {
+    console.error('Symptom analysis error:', error);
+    throw new Error('Failed to analyze symptoms');
+  }
+};
