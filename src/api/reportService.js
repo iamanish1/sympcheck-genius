@@ -15,6 +15,7 @@ export const uploadReport = async (file) => {
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
+      console.error('Server responded with non-JSON content:', contentType);
       throw new Error(`Server responded with non-JSON content: ${contentType}`);
     }
 
@@ -38,6 +39,7 @@ export const getReportAnalysis = async (reportId) => {
     
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
+      console.error('Server responded with non-JSON content:', contentType);
       throw new Error(`Server responded with non-JSON content: ${contentType}`);
     }
 
@@ -49,6 +51,20 @@ export const getReportAnalysis = async (reportId) => {
     return await response.json();
   } catch (error) {
     console.error('Fetch analysis error:', error);
+    throw error;
+  }
+};
+
+// New function to analyze local content with AI
+export const analyzeContentWithAI = async (content, contentType) => {
+  try {
+    console.log('Processing content with local AI:', contentType);
+    // This would connect to the aiService in a real implementation
+    // For now, we'll just return a mock response
+    
+    throw new Error('Local AI processing not fully implemented');
+  } catch (error) {
+    console.error('Local AI processing error:', error);
     throw error;
   }
 };
