@@ -1,14 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Image as ImageIcon, Upload, AlertCircle, CheckCircle } from "lucide-react";
+import { FileText, Image as ImageIcon, Upload, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { uploadReport, getReportAnalysis } from "../../api/reportService";
+import ReportAnalysisResult from "./ReportAnalysisResult";
 
 const ReportUpload = () => {
   const [activeTab, setActiveTab] = useState("image");
@@ -17,6 +20,11 @@ const ReportUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,7 +57,7 @@ const ReportUpload = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!file) {
@@ -61,39 +69,96 @@ const ReportUpload = () => {
       return;
     }
     
-    // Simulate upload
-    setIsUploading(true);
-    
-    setTimeout(() => {
+    try {
+      setIsUploading(true);
+      const result = await uploadReport(file);
+      setReportId(result.report.id);
+      
       setIsUploading(false);
       setIsAnalyzing(true);
       
-      // Simulate analysis
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setUploadComplete(true);
+      // Begin polling for results
+      startPollingForResults(result.report.id);
+      
+    } catch (error: any) {
+      setIsUploading(false);
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message || "Failed to upload the report"
+      });
+    }
+  };
+
+  const startPollingForResults = (id: string) => {
+    // Clear any existing interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
+    // Set up polling
+    const interval = setInterval(async () => {
+      try {
+        const result = await getReportAnalysis(id);
         
-        toast({
-          title: "Analysis Complete",
-          description: "Your medical report has been processed successfully",
-        });
-      }, 3000);
+        if (result.report.status === 'completed') {
+          clearInterval(interval);
+          setIsAnalyzing(false);
+          setUploadComplete(true);
+          setAnalysisResult(result.report.analysisResults);
+          
+          toast({
+            title: "Analysis Complete",
+            description: "Your medical report has been processed successfully",
+          });
+        } else if (result.report.status === 'failed') {
+          clearInterval(interval);
+          setIsAnalyzing(false);
+          setAnalysisError("Analysis failed. Please try again or contact support.");
+          
+          toast({
+            variant: "destructive",
+            title: "Analysis Failed",
+            description: "We couldn't process your report. Please try again."
+          });
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
     }, 2000);
+    
+    setPollingInterval(interval);
+  };
+
+  const viewAnalysisResults = () => {
+    setIsDialogOpen(true);
   };
 
   const resetUpload = () => {
     setFile(null);
     setFilePreview(null);
     setUploadComplete(false);
+    setReportId(null);
+    setAnalysisResult(null);
+    setAnalysisError(null);
   };
+
+  useEffect(() => {
+    // Cleanup interval on component unmount
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   return (
     <div className="max-w-3xl mx-auto">
       <Alert className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Coming Soon</AlertTitle>
+        <AlertTitle>Beta Feature</AlertTitle>
         <AlertDescription>
-          The Report Scanner feature is still in development. This is a preview of the upcoming functionality.
+          The Report Scanner feature is in beta. Results should be reviewed by a medical professional.
         </AlertDescription>
       </Alert>
       
@@ -158,9 +223,15 @@ const ReportUpload = () => {
                     disabled={!file || isUploading || isAnalyzing}
                   >
                     {isUploading ? (
-                      "Uploading..."
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </span>
                     ) : isAnalyzing ? (
-                      "Analyzing..."
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </span>
                     ) : (
                       <span className="flex items-center">
                         <Upload className="mr-2 h-4 w-4" />
@@ -176,9 +247,14 @@ const ReportUpload = () => {
                   <p className="mt-2 text-gray-500">
                     Your medical image has been processed successfully.
                   </p>
-                  <Button onClick={resetUpload} className="mt-6">
-                    Upload Another Report
-                  </Button>
+                  <div className="mt-6 space-y-3">
+                    <Button onClick={viewAnalysisResults} className="w-full" variant="outline">
+                      View Analysis Results
+                    </Button>
+                    <Button onClick={resetUpload} className="w-full">
+                      Upload Another Report
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -241,9 +317,15 @@ const ReportUpload = () => {
                     disabled={!file || isUploading || isAnalyzing}
                   >
                     {isUploading ? (
-                      "Uploading..."
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </span>
                     ) : isAnalyzing ? (
-                      "Analyzing..."
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </span>
                     ) : (
                       <span className="flex items-center">
                         <Upload className="mr-2 h-4 w-4" />
@@ -259,9 +341,14 @@ const ReportUpload = () => {
                   <p className="mt-2 text-gray-500">
                     Your medical report has been processed successfully.
                   </p>
-                  <Button onClick={resetUpload} className="mt-6">
-                    Upload Another Report
-                  </Button>
+                  <div className="mt-6 space-y-3">
+                    <Button onClick={viewAnalysisResults} className="w-full" variant="outline">
+                      View Analysis Results
+                    </Button>
+                    <Button onClick={resetUpload} className="w-full">
+                      Upload Another Report
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -285,6 +372,34 @@ const ReportUpload = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Analysis Results Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Report Analysis Results</DialogTitle>
+            <DialogDescription>
+              AI-generated analysis of your medical report
+            </DialogDescription>
+          </DialogHeader>
+          
+          {analysisResult && (
+            <ReportAnalysisResult analysisResult={analysisResult} />
+          )}
+          
+          {analysisError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Analysis Error</AlertTitle>
+              <AlertDescription>{analysisError}</AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="mt-6 flex justify-end">
+            <Button onClick={() => setIsDialogOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
