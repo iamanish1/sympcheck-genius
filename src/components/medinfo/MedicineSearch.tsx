@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Search, Camera, AlertCircle, RefreshCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeMedicine } from "@/api/medicineService";
 import AIProcessingStatus from "@/components/reports/AIProcessingStatus";
