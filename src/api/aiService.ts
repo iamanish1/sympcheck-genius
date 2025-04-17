@@ -36,7 +36,7 @@ export const getTextModel = async () => {
       modelCache.textModel = await pipeline(
         'text-classification',
         AI_CONFIG.models.reportText,
-        { device: 'cpu' }
+        { device: 'webgpu' }  // Changed from 'cpu' to 'webgpu'
       );
       console.log('Text analysis model initialized successfully');
     } catch (error) {
@@ -54,7 +54,7 @@ export const getImageModel = async () => {
       modelCache.imageModel = await pipeline(
         'image-classification',
         AI_CONFIG.models.reportImage,
-        { device: 'cpu' }
+        { device: 'webgpu' }  // Changed from 'cpu' to 'webgpu'
       );
       console.log('Image analysis model initialized successfully');
     } catch (error) {
@@ -72,7 +72,7 @@ export const getSymptomModel = async () => {
       modelCache.symptomModel = await pipeline(
         'text-classification',
         AI_CONFIG.models.symptoms,
-        { device: 'cpu' }
+        { device: 'webgpu' }  // Changed from 'cpu' to 'webgpu'
       );
       console.log('Symptom analysis model initialized successfully');
     } catch (error) {

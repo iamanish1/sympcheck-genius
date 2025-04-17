@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +16,9 @@ export interface UserFormData {
   gender: string;
   location: string;
   phoneNumber: string;
-  existingConditions: string;
+  existingConditions: string; // This will be used as medicalHistory
   allergies: string;
-  currentMedications: string;
+  currentMedications: string; // This will be used as medications
 }
 
 const UserDetailsForm = ({ onNext }: UserDetailsFormProps) => {

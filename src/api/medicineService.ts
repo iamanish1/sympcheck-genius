@@ -21,7 +21,7 @@ const initializeMedicalModel = async () => {
       medicalModel = await pipeline(
         'text-classification',
         AI_CONFIG.models.medicine,
-        { device: 'cpu' }
+        { device: 'webgpu' } // Changed from 'cpu' to 'webgpu'
       );
       console.log('Medical analysis model initialized successfully');
     } catch (error) {

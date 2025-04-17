@@ -31,7 +31,7 @@ const initializeSymptomModel = async () => {
       symptomModel = await pipeline(
         'text-classification',
         AI_CONFIG.models.symptoms,
-        { device: 'cpu' }
+        { device: 'webgpu' }  // Changed from 'cpu' to 'webgpu'
       );
       console.log('Symptom analysis model initialized successfully');
     } catch (error) {

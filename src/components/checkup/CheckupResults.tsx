@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,9 +27,8 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
       try {
         setAiStatus('loading');
         
-        // Extract symptoms from symptomData (assuming it has a property that contains the symptoms array)
-        // This fixes the TS2339 error about symptoms not existing on SymptomData
-        const symptoms = symptomData.symptomList.map(s => s.text);
+        // Extract symptoms from symptomData
+        const symptoms = symptomData.selectedSymptoms;
         
         // Short delay for UI feedback
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -39,11 +37,11 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
         
         // Create a UserHealthData object from userData
         const healthData: UserHealthData = {
-          age: Number(userData.age), // Convert to number to fix TS2322 error
+          age: parseInt(userData.age), // Convert string to number
           gender: userData.gender,
-          // Added these properties to fix TS2339 error about medicalHistory
-          medicalHistory: userData.healthHistory || "",
-          medications: userData.medications || ""
+          // Using existingConditions as medicalHistory and currentMedications as medications
+          medicalHistory: userData.existingConditions || "",
+          medications: userData.currentMedications || ""
         };
         
         // Get analysis results using our AI-powered service
