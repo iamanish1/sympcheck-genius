@@ -10,8 +10,9 @@ export const AI_CONFIG = {
   useLocalModels: true, // Set to false to use remote API endpoints for AI processing
   modelCaching: true,   // Cache models in browser for better performance
   models: {
-    medicine: 'Xenova/mobilebert-base-medical',
-    reportText: 'Xenova/distilbert-base-uncased-finetuned-sst-2-english',
+    // Use public models that don't require authentication
+    medicine: 'Xenova/distilbert-base-uncased',
+    reportText: 'Xenova/distilbert-base-uncased',
     reportImage: 'Xenova/vit-base-patch16-224',
     symptoms: 'Xenova/distilbert-base-uncased'
   }

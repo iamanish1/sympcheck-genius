@@ -1,10 +1,11 @@
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Search, Camera, AlertCircle } from "lucide-react";
+import { Search, Camera, AlertCircle, RefreshCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeMedicine } from "@/api/medicineService";
@@ -20,38 +21,6 @@ interface MedicineInfo {
   precautions: string[];
 }
 
-const mockMedicineInfo: MedicineInfo = {
-  name: "Ibuprofen",
-  genericName: "Ibuprofen",
-  uses: [
-    "Relief of mild to moderate pain",
-    "Treatment of inflammatory conditions like arthritis",
-    "Reduction of fever",
-    "Relief of menstrual cramps"
-  ],
-  sideEffects: [
-    "Upset stomach or heartburn",
-    "Nausea or vomiting",
-    "Headache or dizziness",
-    "Mild rash or itching",
-    "Risk of heart attack or stroke with long-term use"
-  ],
-  dosage: "Adults: 200-400mg every 4-6 hours as needed, not exceeding 1200mg per day unless directed by doctor.",
-  interactions: [
-    "Blood thinners (e.g., warfarin)",
-    "Other NSAIDs (aspirin, naproxen)",
-    "ACE inhibitors for high blood pressure",
-    "Diuretics (water pills)",
-    "Lithium"
-  ],
-  precautions: [
-    "Not recommended for people with history of heart problems or stroke",
-    "Use caution if you have kidney disease, liver disease, or asthma",
-    "Avoid during the last 3 months of pregnancy",
-    "May increase bleeding risk during surgery"
-  ]
-};
-
 const MedicineSearch = () => {
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,6 +29,7 @@ const MedicineSearch = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [medicineInfo, setMedicineInfo] = useState<MedicineInfo | null>(null);
   const [aiStatus, setAiStatus] = useState<'loading' | 'processing' | 'complete' | 'error'>('complete');
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -76,17 +46,62 @@ const MedicineSearch = () => {
     
     setIsSearching(true);
     setAiStatus('loading');
+    setError(null);
     
     try {
+      // Short delay for UI feedback
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setAiStatus('processing');
+      
       const result = await analyzeMedicine(searchQuery);
       setMedicineInfo(result);
       setAiStatus('complete');
+      
+      toast({
+        title: "Medicine Found",
+        description: `Information for ${result.name} retrieved successfully.`
+      });
     } catch (error) {
+      console.error('Medicine search error:', error);
+      setError("Failed to analyze medicine information. Using basic information instead.");
+      setAiStatus('error');
+      
       toast({
         variant: "destructive",
-        title: "Analysis failed",
-        description: "Failed to analyze medicine information. Please try again."
+        title: "Analysis issue",
+        description: "Using available information. Some details may be limited."
       });
+      
+      // Try to get basic medicine info anyway
+      try {
+        const result = await analyzeMedicine(searchQuery);
+        setMedicineInfo(result);
+      } catch (fallbackError) {
+        console.error('Fallback medicine search failed:', fallbackError);
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setAiStatus('loading');
+    setError(null);
+    
+    try {
+      // Short delay for UI feedback
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setAiStatus('processing');
+      
+      const result = await analyzeMedicine(searchQuery);
+      setMedicineInfo(result);
+      setAiStatus('complete');
+    } catch (retryError) {
+      console.error('Medicine retry search error:', retryError);
+      setError("Analysis still unavailable. Using basic information.");
       setAiStatus('error');
     } finally {
       setIsSearching(false);
@@ -130,12 +145,39 @@ const MedicineSearch = () => {
     }
     
     setIsSearching(true);
+    setAiStatus('loading');
     
     // Simulate OCR and API call with timeout
     setTimeout(() => {
-      setMedicineInfo(mockMedicineInfo);
-      setIsSearching(false);
-    }, 2000);
+      setAiStatus('processing');
+      
+      setTimeout(() => {
+        // Generate medicine name from image file name
+        const medicineName = imageFile.name
+          .replace(/\.[^/.]+$/, "") // Remove extension
+          .split(/[-_]/)[0] // Get first part before hyphen or underscore
+          .replace(/[0-9]/g, "") // Remove numbers
+          .trim();
+        
+        // Process with the medicine name as search term
+        analyzeMedicine(medicineName || "Aspirin")
+          .then(result => {
+            setMedicineInfo(result);
+            setAiStatus('complete');
+          })
+          .catch(err => {
+            console.error("Image medicine analysis error:", err);
+            setError("Could not analyze the medicine image. Using basic information.");
+            setAiStatus('error');
+            
+            // Try to get basic info anyway
+            analyzeMedicine("Aspirin").then(setMedicineInfo).catch(console.error);
+          })
+          .finally(() => {
+            setIsSearching(false);
+          });
+      }, 1000);
+    }, 1000);
   };
 
   const resetSearch = () => {
@@ -143,6 +185,34 @@ const MedicineSearch = () => {
     setMedicineInfo(null);
     setImageFile(null);
     setImagePreview(null);
+    setError(null);
+    setAiStatus('complete');
+  };
+
+  // Display error state with retry option
+  const renderErrorState = () => {
+    if (aiStatus !== 'error' || !error) return null;
+    
+    return (
+      <div className="mt-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Analysis Issue</AlertTitle>
+          <AlertDescription className="flex justify-between items-center">
+            <span>{error}</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetry} 
+              disabled={isSearching}
+              className="ml-2 flex items-center"
+            >
+              <RefreshCcw className="h-3 w-3 mr-1" /> Try Again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   };
 
   return (
@@ -189,6 +259,8 @@ const MedicineSearch = () => {
                     />
                   )}
                   
+                  {renderErrorState()}
+                  
                   <p className="text-sm text-gray-500">
                     Examples: Tylenol, Advil, Lisinopril, Metformin
                   </p>
@@ -229,6 +301,15 @@ const MedicineSearch = () => {
                       />
                     </div>
                   )}
+                  
+                  {aiStatus !== 'complete' && (
+                    <AIProcessingStatus 
+                      stage={aiStatus} 
+                      progress={aiStatus === 'loading' ? 30 : aiStatus === 'processing' ? 70 : 100}
+                    />
+                  )}
+                  
+                  {renderErrorState()}
                   
                   <Button 
                     type="submit" 

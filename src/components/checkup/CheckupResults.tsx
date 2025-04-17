@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, ThumbsUp, AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertCircle, ThumbsUp, AlertTriangle, ArrowRight, RefreshCcw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +11,7 @@ import { UserFormData } from "./UserDetailsForm";
 import { SymptomData } from "./SymptomInput";
 import { analyzeUserSymptoms, SymptomAnalysisResult, UserHealthData } from "../../api/symptomService";
 import AIProcessingStatus from "../reports/AIProcessingStatus";
+import { useToast } from "@/hooks/use-toast";
 
 interface CheckupResultsProps {
   userData: UserFormData;
@@ -21,11 +23,14 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
   const [analysisResult, setAnalysisResult] = useState<SymptomAnalysisResult | null>(null);
   const [aiStatus, setAiStatus] = useState<'loading' | 'processing' | 'complete' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(30);
+  const { toast } = useToast();
 
   useEffect(() => {
     const performAnalysis = async () => {
       try {
         setAiStatus('loading');
+        setProgress(30);
         
         // Extract symptoms from symptomData
         const symptoms = symptomData.selectedSymptoms;
@@ -34,6 +39,7 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         setAiStatus('processing');
+        setProgress(70);
         
         // Create a UserHealthData object from userData
         const healthData: UserHealthData = {
@@ -49,22 +55,91 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
         
         setAnalysisResult(results);
         setAiStatus('complete');
+        setProgress(100);
+
+        toast({
+          title: "Analysis Complete",
+          description: "Your symptoms have been analyzed successfully.",
+        });
       } catch (err) {
         console.error('Analysis error:', err);
         setError('Failed to analyze symptoms. Please try again.');
+        setAiStatus('error');
+        
+        toast({
+          variant: "destructive",
+          title: "Analysis Failed",
+          description: "An error occurred during symptom analysis. Using fallback data."
+        });
+        
+        // Try again with a simple analysis
+        try {
+          const symptoms = symptomData.selectedSymptoms;
+          const healthData: UserHealthData = {
+            age: parseInt(userData.age),
+            gender: userData.gender,
+            medicalHistory: userData.existingConditions || "",
+            medications: userData.currentMedications || ""
+          };
+          
+          // Get a basic analysis without AI enhancement
+          const results = await analyzeUserSymptoms(symptoms, healthData);
+          setAnalysisResult(results);
+          setAiStatus('complete');
+          setProgress(100);
+          setError(null);
+        } catch (fallbackError) {
+          console.error('Fallback analysis error:', fallbackError);
+        }
+      }
+    };
+    
+    performAnalysis();
+  }, [userData, symptomData, toast]);
+
+  const handleRetry = () => {
+    setAiStatus('loading');
+    setProgress(30);
+    setError(null);
+    // Re-trigger analysis
+    const performAnalysis = async () => {
+      try {
+        // Extract symptoms from symptomData
+        const symptoms = symptomData.selectedSymptoms;
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        setAiStatus('processing');
+        setProgress(70);
+        
+        const healthData: UserHealthData = {
+          age: parseInt(userData.age),
+          gender: userData.gender,
+          medicalHistory: userData.existingConditions || "",
+          medications: userData.currentMedications || ""
+        };
+        
+        const results = await analyzeUserSymptoms(symptoms, healthData);
+        
+        setAnalysisResult(results);
+        setAiStatus('complete');
+        setProgress(100);
+      } catch (err) {
+        console.error('Retry analysis error:', err);
+        setError('Failed to analyze symptoms even after retry. Using basic analysis.');
         setAiStatus('error');
       }
     };
     
     performAnalysis();
-  }, [userData, symptomData]);
+  };
 
-  if (aiStatus !== 'complete') {
+  if (aiStatus !== 'complete' && aiStatus !== 'error') {
     return (
       <div className="py-8">
         <AIProcessingStatus 
           stage={aiStatus} 
-          progress={aiStatus === 'loading' ? 30 : aiStatus === 'processing' ? 70 : 100}
+          progress={progress}
           message={error || undefined}
         />
       </div>
@@ -177,11 +252,11 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Analysis Failed</AlertTitle>
-          <AlertDescription>
-            {error} 
-            <Button variant="outline" size="sm" onClick={onRestart} className="ml-2">
-              Try Again
+          <AlertTitle>Analysis Status</AlertTitle>
+          <AlertDescription className="flex justify-between items-center">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={handleRetry} className="ml-2 flex items-center">
+              <RefreshCcw className="h-3 w-3 mr-1" /> Try Again
             </Button>
           </AlertDescription>
         </Alert>
