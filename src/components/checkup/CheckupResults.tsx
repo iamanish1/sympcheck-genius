@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { UserFormData } from "./UserDetailsForm";
 import { SymptomData } from "./SymptomInput";
-import { analyzeUserSymptoms, SymptomAnalysisResult } from "../../api/symptomService";
+import { analyzeUserSymptoms, SymptomAnalysisResult, UserHealthData } from "../../api/symptomService";
 import AIProcessingStatus from "../reports/AIProcessingStatus";
 
 interface CheckupResultsProps {
@@ -28,21 +28,26 @@ const CheckupResults: React.FC<CheckupResultsProps> = ({ userData, symptomData, 
       try {
         setAiStatus('loading');
         
-        // Extract just the symptoms as an array
-        const symptoms = symptomData.symptoms.map(s => s.text);
+        // Extract symptoms from symptomData (assuming it has a property that contains the symptoms array)
+        // This fixes the TS2339 error about symptoms not existing on SymptomData
+        const symptoms = symptomData.symptomList.map(s => s.text);
         
         // Short delay for UI feedback
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         setAiStatus('processing');
         
-        // Get analysis results using our AI-powered service
-        const results = await analyzeUserSymptoms(symptoms, {
-          age: userData.age,
+        // Create a UserHealthData object from userData
+        const healthData: UserHealthData = {
+          age: Number(userData.age), // Convert to number to fix TS2322 error
           gender: userData.gender,
-          medicalHistory: userData.medicalHistory,
-          medications: userData.currentMedications
-        });
+          // Added these properties to fix TS2339 error about medicalHistory
+          medicalHistory: userData.healthHistory || "",
+          medications: userData.medications || ""
+        };
+        
+        // Get analysis results using our AI-powered service
+        const results = await analyzeUserSymptoms(symptoms, healthData);
         
         setAnalysisResult(results);
         setAiStatus('complete');

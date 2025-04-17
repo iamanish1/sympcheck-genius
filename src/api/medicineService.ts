@@ -1,6 +1,6 @@
 
 import { pipeline } from '@huggingface/transformers';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, AI_CONFIG } from './config';
 
 interface MedicineInfo {
   name: string;
@@ -20,8 +20,8 @@ const initializeMedicalModel = async () => {
     try {
       medicalModel = await pipeline(
         'text-classification',
-        'Xenova/mobilebert-base-medical',
-        { quantized: false }
+        AI_CONFIG.models.medicine,
+        { device: 'cpu' }
       );
       console.log('Medical analysis model initialized successfully');
     } catch (error) {
