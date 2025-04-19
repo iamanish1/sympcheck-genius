@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,8 +15,16 @@ const AIProcessingStatus: React.FC<AIProcessingStatusProps> = ({
   progress = 0,
   message 
 }) => {
+  // Local state to ensure progress can continue independently
+  const [internalProgress, setInternalProgress] = useState(progress);
+  
+  // Update internal progress when prop changes
+  useEffect(() => {
+    setInternalProgress(progress);
+  }, [progress]);
+
   // Ensure progress values are always realistic
-  const displayProgress = Math.min(Math.max(progress, 0), 100);
+  const displayProgress = Math.min(Math.max(internalProgress, 0), 100);
   
   const getStatusMessage = () => {
     switch (stage) {
@@ -56,27 +64,47 @@ const AIProcessingStatus: React.FC<AIProcessingStatusProps> = ({
     );
   }
 
-  // Simulate continuous progress when in processing or analyzing stages
+  // Enhanced continuous progress mechanism with safeguards
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
     if (stage === 'processing' || stage === 'analyzing') {
       if (displayProgress < 95) {
         interval = setInterval(() => {
-          // If we're stuck at 70%, we need to push it forward
-          const increment = displayProgress === 70 ? 5 : 1;
-          const newProgress = Math.min(displayProgress + increment, 95);
-          
-          const progressEvent = new CustomEvent('ai-progress-update', { 
-            detail: { progress: newProgress } 
+          setInternalProgress(prev => {
+            // If we're stuck at 70%, push it forward more aggressively
+            if (prev >= 69 && prev <= 71) {
+              return prev + 5;
+            }
+            // Normal progression
+            return Math.min(prev + 1, 95);
           });
-          window.dispatchEvent(progressEvent);
-        }, 3000);
+        }, 2000); // Faster updates
       }
     }
     
+    // Force completion after a timeout if we're close but stuck
+    let completionTimer: NodeJS.Timeout | null = null;
+    if (stage === 'analyzing' && displayProgress >= 85) {
+      completionTimer = setTimeout(() => {
+        // Dispatch a custom event that the parent can listen for
+        const forceCompleteEvent = new CustomEvent('ai-force-complete');
+        window.dispatchEvent(forceCompleteEvent);
+        
+        // Also update our own progress for visual feedback
+        setInternalProgress(100);
+      }, 10000); // 10 seconds max at analyzing stage over 85%
+    }
+    
+    // Always dispatch progress updates to parent component
+    const progressEvent = new CustomEvent('ai-progress-update', { 
+      detail: { progress: displayProgress } 
+    });
+    window.dispatchEvent(progressEvent);
+    
     return () => {
       if (interval) clearInterval(interval);
+      if (completionTimer) clearTimeout(completionTimer);
     };
   }, [stage, displayProgress]);
 

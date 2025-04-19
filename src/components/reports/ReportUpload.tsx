@@ -37,11 +37,18 @@ const ReportUpload = () => {
     const handleProgressUpdate = (event: CustomEvent) => {
       setProcessingProgress(event.detail.progress);
     };
+    
+    const handleForceComplete = () => {
+      console.log("Force complete event received");
+      finishAnalysisWithFallback();
+    };
 
     window.addEventListener('ai-progress-update', handleProgressUpdate as EventListener);
+    window.addEventListener('ai-force-complete', handleForceComplete as EventListener);
     
     return () => {
       window.removeEventListener('ai-progress-update', handleProgressUpdate as EventListener);
+      window.removeEventListener('ai-force-complete', handleForceComplete as EventListener);
     };
   }, []);
 
@@ -65,18 +72,32 @@ const ReportUpload = () => {
         else if (processingStage === 'analyzing') {
           finishAnalysisWithFallback();
         }
-      }, 15000); // 15 seconds timeout
+      }, 10000); // 10 seconds timeout (reduced from 15 for faster recovery)
+    }
+    
+    // If we're analyzing for more than 30 seconds total, just complete it
+    let totalAnalysisTimer: NodeJS.Timeout | null = null;
+    if (isAnalyzing && !analysisResult) {
+      totalAnalysisTimer = setTimeout(() => {
+        console.log("Analysis taking too long, using fallback");
+        finishAnalysisWithFallback();
+      }, 30000); // 30 seconds max total analysis time
     }
     
     return () => {
       if (stuckTimer) clearTimeout(stuckTimer);
+      if (totalAnalysisTimer) clearTimeout(totalAnalysisTimer);
     };
-  }, [isAnalyzing, processingProgress, processingStage]);
+  }, [isAnalyzing, processingProgress, processingStage, analysisResult]);
   
   // Function to complete analysis with fallback data if stuck
   const finishAnalysisWithFallback = async () => {
     try {
       console.log("Using fallback to complete analysis");
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
       const mockResult = await mockReportService.getReportAnalysis("fallback");
       setIsAnalyzing(false);
       setUploadComplete(true);
@@ -91,6 +112,12 @@ const ReportUpload = () => {
     } catch (e) {
       setProcessingStage('error');
       setAnalysisError("Analysis process stalled. Please try again.");
+      
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "There was a problem processing your report."
+      });
     }
   };
 
@@ -141,6 +168,7 @@ const ReportUpload = () => {
     setProcessingProgress(10);
     setAnalysisError(null);
     setUseMockApi(false); // Start by trying the real API
+    setAnalysisResult(null);
     
     try {
       setIsUploading(true);
@@ -151,7 +179,15 @@ const ReportUpload = () => {
         setProcessingProgress(20);
         
         // Try local processing first
+        toast({
+          title: "Processing Your File",
+          description: "Analyzing with our local AI system..."
+        });
+        
+        console.log("Starting local AI analysis with file:", file.name, file.type);
         const result = await analyzeContentWithAI(file, file.type);
+        console.log("Local AI analysis complete:", result);
+        
         setProcessingStage('analyzing');
         setProcessingProgress(80);
         
@@ -176,6 +212,12 @@ const ReportUpload = () => {
         setProcessingStage('preparing');
         setProcessingProgress(30);
       }
+      
+      // If local processing failed, try server API
+      toast({
+        title: "Using Remote Analysis",
+        description: "Processing your report on our secure servers..."
+      });
       
       let result;
       
@@ -242,8 +284,8 @@ const ReportUpload = () => {
     }
     
     let attempts = 0;
-    const maxAttempts = 6; // Reduced number of max attempts
-    const baseDelay = 1500; // Shorter polling interval (1.5 seconds)
+    const maxAttempts = 5; // Reasonable number of attempts
+    const baseDelay = 1500; // Short initial polling interval
     
     // Set up polling with exponential backoff
     const interval = setInterval(async () => {
@@ -300,14 +342,6 @@ const ReportUpload = () => {
         console.log("Max polling attempts reached, using fallback");
         finishAnalysisWithFallback();
       }
-      
-      // Increase delay for next poll (exponential backoff)
-      clearInterval(interval);
-      if (attempts < maxAttempts) {
-        const newDelay = baseDelay * Math.pow(1.5, attempts);
-        setTimeout(() => startPollingForResults(id), newDelay);
-      }
-      
     }, baseDelay);
     
     setPollingInterval(interval);

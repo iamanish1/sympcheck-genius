@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -84,6 +85,13 @@ const ReportAnalysisResult: React.FC<ReportAnalysisResultProps> = ({ analysisRes
     );
   };
 
+  // Determine progress bar color based on health score
+  const getHealthScoreClass = (score: number) => {
+    if (score >= 80) return 'bg-green-100';
+    if (score >= 60) return 'bg-amber-100';
+    return 'bg-red-100';
+  };
+
   if (analysisResult.type === 'image') {
     return (
       <div className="space-y-6">
@@ -105,10 +113,7 @@ const ReportAnalysisResult: React.FC<ReportAnalysisResultProps> = ({ analysisRes
           <CardContent>
             <Progress 
               value={analysisResult.healthScore} 
-              className={`h-2 ${
-                analysisResult.healthScore >= 80 ? 'bg-green-100' : 
-                analysisResult.healthScore >= 60 ? 'bg-amber-100' : 'bg-red-100'
-              }`}
+              className={`h-2 ${getHealthScoreClass(analysisResult.healthScore)}`}
             />
             <p className="mt-4 text-gray-700">{analysisResult.summary}</p>
           </CardContent>
@@ -244,10 +249,7 @@ const ReportAnalysisResult: React.FC<ReportAnalysisResultProps> = ({ analysisRes
           <CardContent>
             <Progress 
               value={result.healthScore} 
-              className={`h-2 ${
-                result.healthScore >= 80 ? 'bg-green-100' : 
-                result.healthScore >= 60 ? 'bg-amber-100' : 'bg-red-100'
-              }`}
+              className={`h-2 ${getHealthScoreClass(result.healthScore)}`}
             />
             <p className="mt-4 text-gray-700">{result.summary}</p>
           </CardContent>
