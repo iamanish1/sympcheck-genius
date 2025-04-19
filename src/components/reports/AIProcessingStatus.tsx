@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +15,9 @@ const AIProcessingStatus: React.FC<AIProcessingStatusProps> = ({
   progress = 0,
   message 
 }) => {
+  // Ensure progress values are always realistic
+  const displayProgress = Math.min(Math.max(progress, 0), 100);
+  
   const getStatusMessage = () => {
     switch (stage) {
       case 'loading':
@@ -53,6 +56,30 @@ const AIProcessingStatus: React.FC<AIProcessingStatusProps> = ({
     );
   }
 
+  // Simulate continuous progress when in processing or analyzing stages
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (stage === 'processing' || stage === 'analyzing') {
+      if (displayProgress < 95) {
+        interval = setInterval(() => {
+          // If we're stuck at 70%, we need to push it forward
+          const increment = displayProgress === 70 ? 5 : 1;
+          const newProgress = Math.min(displayProgress + increment, 95);
+          
+          const progressEvent = new CustomEvent('ai-progress-update', { 
+            detail: { progress: newProgress } 
+          });
+          window.dispatchEvent(progressEvent);
+        }, 3000);
+      }
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [stage, displayProgress]);
+
   return (
     <div className="text-center p-4">
       {stage === 'complete' ? (
@@ -65,9 +92,9 @@ const AIProcessingStatus: React.FC<AIProcessingStatusProps> = ({
       
       {(stage !== 'complete') && (
         <div className="mt-4">
-          <Progress value={progress} className="h-2" />
+          <Progress value={displayProgress} className="h-2" />
           <p className="text-xs text-gray-500 mt-1">
-            {progress}% complete
+            {displayProgress}% complete
           </p>
         </div>
       )}
