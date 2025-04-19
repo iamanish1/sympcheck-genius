@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -110,10 +109,6 @@ const ReportAnalysisResult: React.FC<ReportAnalysisResultProps> = ({ analysisRes
                 analysisResult.healthScore >= 80 ? 'bg-green-100' : 
                 analysisResult.healthScore >= 60 ? 'bg-amber-100' : 'bg-red-100'
               }`}
-              indicatorClassName={
-                analysisResult.healthScore >= 80 ? 'bg-green-500' : 
-                analysisResult.healthScore >= 60 ? 'bg-amber-500' : 'bg-red-500'
-              }
             />
             <p className="mt-4 text-gray-700">{analysisResult.summary}</p>
           </CardContent>
@@ -253,10 +248,6 @@ const ReportAnalysisResult: React.FC<ReportAnalysisResultProps> = ({ analysisRes
                 result.healthScore >= 80 ? 'bg-green-100' : 
                 result.healthScore >= 60 ? 'bg-amber-100' : 'bg-red-100'
               }`}
-              indicatorClassName={
-                result.healthScore >= 80 ? 'bg-green-500' : 
-                result.healthScore >= 60 ? 'bg-amber-500' : 'bg-red-500'
-              }
             />
             <p className="mt-4 text-gray-700">{result.summary}</p>
           </CardContent>

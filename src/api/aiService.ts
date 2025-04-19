@@ -1,5 +1,5 @@
 
-import { pipeline } from '@huggingface/transformers';
+import { pipeline, PipelineType } from '@huggingface/transformers';
 import { AI_CONFIG } from './config';
 
 // Enhanced type definitions
@@ -57,7 +57,7 @@ const MAX_LOAD_ATTEMPTS = 3;
 
 // Enhanced model loading with fallback mechanism
 const loadModel = async (
-  task: string, 
+  task: PipelineType, 
   modelName: string, 
   fallbackModelName: string
 ): Promise<any> => {
@@ -103,7 +103,7 @@ export const getTextModel = async () => {
   if (!modelCache.textModel) {
     try {
       modelCache.textModel = await loadModel(
-        'text-classification',
+        'text-classification' as PipelineType,
         AI_CONFIG.models.reportText,
         AI_CONFIG.fallbackModels.reportText
       );
@@ -120,7 +120,7 @@ export const getImageModel = async () => {
   if (!modelCache.imageModel) {
     try {
       modelCache.imageModel = await loadModel(
-        'image-classification',
+        'image-classification' as PipelineType,
         AI_CONFIG.models.reportImage,
         AI_CONFIG.fallbackModels.reportImage
       );
@@ -136,7 +136,7 @@ export const getSymptomModel = async () => {
   if (!modelCache.symptomModel) {
     try {
       modelCache.symptomModel = await loadModel(
-        'text-classification',
+        'text-classification' as PipelineType,
         AI_CONFIG.models.symptoms,
         AI_CONFIG.fallbackModels.symptoms
       );
